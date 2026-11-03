@@ -23,6 +23,19 @@ TypeScript cannot handle type information for `.vue` imports by default, so we r
 
 See [Vite Configuration Reference](https://vite.dev/config/).
 
+## Docker
+
+Build and serve the production bundle with nginx:
+
+```bash
+docker build -t school-management-web .
+docker run --rm -p 8080:80 school-management-web
+```
+
+The included `nginx.conf` also proxies `/api` to a container named `api`, which
+the Compose stack at `../docker-compose.yml` provides. See `../DOCKER.md` for
+the full deployment instructions.
+
 ## Project Setup
 
 ```sh
