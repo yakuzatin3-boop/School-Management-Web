@@ -8,4 +8,5 @@ coverage
 *.log
 .vscode
 .idea
+.github
 __screenshots__
