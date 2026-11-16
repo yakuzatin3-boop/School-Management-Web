@@ -178,14 +178,18 @@ onMounted(async () => {
   await Promise.allSettled([
     settingsStore.load(),
     announcementsStore.load(),
-    coursesStore.load(),
+    auth.isAdmin ? coursesStore.load() : Promise.resolve(),
     attendanceStore.load(),
     gradesStore.load(),
     feesStore.load(false, auth.isStudent ? 'mine' : 'all'),
     timetableStore.load(),
-    auth.isStudent ? Promise.resolve() : classesStore.load(),
-    auth.isStudent ? Promise.resolve() : studentsStore.load(),
-    auth.isStudent ? Promise.resolve() : teachersStore.load(),
+    auth.isStudent
+      ? classesStore.loadMine()
+      : auth.isTeacher
+        ? classesStore.loadMine().catch(() => classesStore.load())
+        : classesStore.load(),
+    auth.isAdmin ? studentsStore.load() : Promise.resolve(),
+    auth.isAdmin ? teachersStore.load() : Promise.resolve(),
   ])
 })
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))

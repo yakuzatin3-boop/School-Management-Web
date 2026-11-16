@@ -35,10 +35,9 @@ const announcementsStore = useAnnouncementsStore()
 
 const myClasses = computed(() => {
   const teacherId = auth.user?.id
-  if (!teacherId) return classStore.classes
+  if (!teacherId) return []
 
-  const owned = classStore.classes.filter((schoolClass) => schoolClass.teacherId === teacherId)
-  return owned.length > 0 ? owned : classStore.classes
+  return classStore.classes.filter((schoolClass) => !schoolClass.teacherId || schoolClass.teacherId === teacherId)
 })
 
 const myClassIds = computed(() => new Set(myClasses.value.map((schoolClass) => schoolClass.id)))
@@ -57,7 +56,7 @@ const myAttendanceRecords = computed(() =>
 )
 
 const myAttendanceRate = computed(() => {
-  if (myAttendanceRecords.value.length === 0) return attendanceStore.overallRate
+  if (myAttendanceRecords.value.length === 0) return 0
 
   const attended = myAttendanceRecords.value.filter(
     (record) => record.status === 'present' || record.status === 'late',
@@ -66,13 +65,15 @@ const myAttendanceRate = computed(() => {
   return Math.round((attended / myAttendanceRecords.value.length) * 100)
 })
 
-const myGradesCount = computed(() =>
+const myGradesRecords = computed(() =>
   gradesStore.records.filter(
     (record) =>
       (record.classId && myClassIds.value.has(record.classId)) ||
       myClassNames.value.has(record.className),
-  ).length,
+  ),
 )
+
+const myGradesCount = computed(() => myGradesRecords.value.length)
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const todayName = weekdays[new Date().getDay()] ?? 'Monday'
@@ -170,14 +171,14 @@ const pinnedAnnouncements = computed(() => announcementsStore.pinned.slice(0, 2)
       <StatCard
         label="Attendance rate"
         :value="`${myAttendanceRate}%`"
-        hint="Across recorded sessions"
+        hint="Across your recorded sessions"
         :icon="CalendarCheck"
         tone="sky"
       />
       <StatCard
         label="Grade records"
-        :value="myGradesCount || gradesStore.records.length"
-        hint="Assessment scores tracked"
+        :value="myGradesCount"
+        hint="Assessment scores for your classes"
         :icon="ClipboardList"
         tone="amber"
       />
