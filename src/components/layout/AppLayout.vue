@@ -15,6 +15,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  QrCode,
   School,
   Search,
   Settings,
@@ -84,10 +85,18 @@ const navigation: NavGroup[] = [
     items: [
       { name: 'Students', to: '/students', icon: GraduationCap, roles: ['admin', 'teacher'] },
       { name: 'Teachers', to: '/teachers', icon: Users, roles: ['admin'] },
-      { name: 'Classes', to: '/classes', icon: BookOpen, roles: ['admin', 'teacher'] },
+      { name: 'Classes', to: '/classes', icon: BookOpen, roles: ['admin'] },
       { name: 'Attendance', to: '/attendance', icon: CalendarCheck },
       { name: 'Grades', to: '/grades', icon: ClipboardList },
       { name: 'Timetable', to: '/timetable', icon: CalendarDays },
+    ],
+  },
+  {
+    label: 'Classroom',
+    items: [
+      { name: 'My classes', to: '/teacher/classes', icon: BookOpen, roles: ['teacher'] },
+      { name: 'My classes', to: '/student/classes', icon: BookOpen, roles: ['student'] },
+      { name: 'Scan QR', to: '/student/scan', icon: QrCode, roles: ['student'] },
     ],
   },
   {

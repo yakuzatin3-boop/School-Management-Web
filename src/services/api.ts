@@ -6,12 +6,14 @@ const SESSION_EXPIRED_EVENT = 'school-management:session-expired'
 interface ApiErrorBody {
   message?: string | string[]
   error?: string
+  code?: string
 }
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -73,7 +75,11 @@ async function send<T>(path: string, init: RequestInit, retry: boolean): Promise
 
   const body = (await response.json().catch(() => null)) as ApiErrorBody | null
   if (!response.ok) {
-    throw new ApiError(errorMessage(body, response.statusText || 'Request failed'), response.status)
+    throw new ApiError(
+      errorMessage(body, response.statusText || 'Request failed'),
+      response.status,
+      body?.code,
+    )
   }
 
   return body as T

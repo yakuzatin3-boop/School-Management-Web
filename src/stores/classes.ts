@@ -2,25 +2,18 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { apiRequest } from '@/services/api'
-import type { ClassEnrollment, SchoolClass } from '@/types'
-
-interface ApiSchedule {
-  id: string
-  dayOfWeek: number
-  startTime: string
-  endTime: string
-  room: { id: string; name: string; roomCode: string; capacity: number } | null
-}
-
-interface ApiClass {
-  id: string
-  classCode: string
-  name: string
-  status: 'active' | 'inactive'
-  course: { id: string; name: string } | null
-  teacher: { id: string } | null
-  schedules: ApiSchedule[]
-}
+import {
+  createManagedClass,
+  getClass,
+  listClasses,
+  listMyClasses,
+  mapApiClass,
+  previewClassJoin,
+  regenerateRegistrationToken,
+  registerForClass,
+  type ClassRegistrationResult,
+} from '@/services/classManagement'
+import type { ManagedClassDraft, SchoolClass } from '@/types'
 
 export interface ClassDraft {
   classCode?: string
@@ -30,38 +23,10 @@ export interface ClassDraft {
   status?: string
 }
 
-const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-function gradeFromName(name: string): string {
-  const match = name.match(/(?:grade\s*)?(\d{1,2})/i)
-
-  return match ? `Grade ${match[1]}` : 'Unassigned'
-}
-
-function mapClass(apiClass: ApiClass, enrollments: ClassEnrollment[]): SchoolClass {
-  const schedules = apiClass.schedules ?? []
-  const firstRoom = schedules.find((schedule) => schedule.room)?.room
-
-  return {
-    id: apiClass.id,
-    classCode: apiClass.classCode,
-    courseId: apiClass.course?.id,
-    name: apiClass.name,
-    grade: gradeFromName(apiClass.name),
-    teacherId: apiClass.teacher?.id ?? '',
-    room: firstRoom?.name ?? firstRoom?.roomCode ?? 'Unassigned',
-    capacity: firstRoom?.capacity ?? 0,
-    schedule: schedules
-      .map((schedule) => `${weekdayNames[schedule.dayOfWeek - 1]} ${schedule.startTime.slice(0, 5)}`)
-      .join(', ') || 'No schedule',
-    status: apiClass.status,
-    enrollments,
-  }
-}
-
 export const useClassesStore = defineStore('classes', () => {
   const classes = ref<SchoolClass[]>([])
   const loading = ref(false)
+  const myClassesLoading = ref(false)
   let loadPromise: Promise<void> | null = null
 
   const total = computed(() => classes.value.length)
@@ -74,15 +39,15 @@ export const useClassesStore = defineStore('classes', () => {
     if (classes.value.length && !force) return
 
     loading.value = true
-    loadPromise = apiRequest<ApiClass[]>('/classes')
+    loadPromise = listClasses()
       .then(async (response) => {
         const rosters = await Promise.all(
           response.map((schoolClass) =>
-            apiRequest<ClassEnrollment[]>(`/classes/${schoolClass.id}/students`),
+            apiRequest<SchoolClass['enrollments']>(`/classes/${schoolClass.id}/students`),
           ),
         )
         classes.value = response.map((schoolClass, index) =>
-          mapClass(schoolClass, rosters[index] ?? []),
+          mapApiClass(schoolClass, rosters[index] ?? []),
         )
       })
       .finally(() => {
@@ -93,8 +58,33 @@ export const useClassesStore = defineStore('classes', () => {
     return loadPromise
   }
 
+  async function loadMine(): Promise<void> {
+    myClassesLoading.value = true
+    try {
+      const response = await listMyClasses()
+      classes.value = response.map((schoolClass) => mapApiClass(schoolClass))
+    } finally {
+      myClassesLoading.value = false
+    }
+  }
+
+  async function loadOne(id: string): Promise<SchoolClass> {
+    const response = await getClass(id)
+    const roster = await apiRequest<SchoolClass['enrollments']>(`/classes/${id}/students`).catch(
+      () => response.enrollments,
+    )
+    const schoolClass = mapApiClass(response, roster ?? response.enrollments ?? [])
+    const index = classes.value.findIndex((item) => item.id === id)
+    classes.value =
+      index === -1
+        ? [...classes.value, schoolClass]
+        : classes.value.map((item) => (item.id === id ? schoolClass : item))
+
+    return schoolClass
+  }
+
   async function create(draft: ClassDraft): Promise<SchoolClass> {
-    const response = await apiRequest<ApiClass>('/classes', {
+    const response = await apiRequest<{ id: string }>('/classes', {
       method: 'POST',
       body: JSON.stringify({
         classCode: draft.classCode ?? draft.name,
@@ -105,7 +95,19 @@ export const useClassesStore = defineStore('classes', () => {
       }),
     })
     await load(true)
-    return classes.value.find((schoolClass) => schoolClass.id === response.id) ?? mapClass(response, [])
+
+    const created = classes.value.find((schoolClass) => schoolClass.id === response.id)
+    if (!created) throw new Error('The class was created but could not be reloaded.')
+
+    return created
+  }
+
+  async function createManaged(draft: ManagedClassDraft): Promise<SchoolClass> {
+    const response = await createManagedClass(draft)
+    const schoolClass = mapApiClass(response)
+    classes.value = [schoolClass, ...classes.value.filter((item) => item.id !== schoolClass.id)]
+
+    return schoolClass
   }
 
   async function update(id: string, draft: ClassDraft): Promise<void> {
@@ -127,9 +129,55 @@ export const useClassesStore = defineStore('classes', () => {
     await load(true)
   }
 
+  async function regenerateToken(id: string): Promise<string> {
+    const { token } = await regenerateRegistrationToken(id)
+    classes.value = classes.value.map((schoolClass) =>
+      schoolClass.id === id ? { ...schoolClass, registrationToken: token } : schoolClass,
+    )
+
+    return token
+  }
+
+  async function ensureToken(id: string): Promise<string> {
+    const schoolClass = find(id)
+    if (schoolClass?.registrationToken) return schoolClass.registrationToken
+
+    return regenerateToken(id)
+  }
+
+  async function previewJoin(classId: string, token: string): Promise<SchoolClass> {
+    return mapApiClass(await previewClassJoin(classId, token))
+  }
+
+  async function register(classId: string, token: string): Promise<ClassRegistrationResult> {
+    return registerForClass(classId, token)
+  }
+
   function find(id: string): SchoolClass | undefined {
     return classes.value.find((schoolClass) => schoolClass.id === id)
   }
 
-  return { classes, loading, total, totalCapacity, load, create, update, remove, find }
+  return {
+    classes,
+    loading,
+    myClassesLoading,
+    total,
+    totalCapacity,
+    load,
+    loadMine,
+    loadOne,
+    create,
+    createManaged,
+    update,
+    remove,
+    regenerateToken,
+    ensureToken,
+    previewJoin,
+    register,
+    find,
+  }
 })
+
+// The feature spec refers to this store as useClassStore; keep both names for
+// existing pages that already import useClassesStore.
+export const useClassStore = useClassesStore

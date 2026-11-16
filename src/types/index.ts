@@ -30,6 +30,35 @@ export interface Teacher {
   hiredAt: string
 }
 
+export const COURSE_NAMES = [
+  'Web Backend',
+  'Web Frontend',
+  'Networking',
+  'Database',
+  'Cybersecurity',
+  'Mobile Development',
+  'DevOps / Cloud',
+  'Other',
+] as const
+
+export type CourseName = (typeof COURSE_NAMES)[number]
+
+export const BUILDING_NAMES = ['Building A', 'Building B', 'Building C', 'Building D'] as const
+
+export type BuildingName = (typeof BUILDING_NAMES)[number]
+
+export const WEEKDAY_NAMES = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+] as const
+
+export type WeekdayName = (typeof WEEKDAY_NAMES)[number]
+
 export interface SchoolClass {
   id: string
   classCode?: string
@@ -42,6 +71,78 @@ export interface SchoolClass {
   schedule: string
   status?: Status
   enrollments?: ClassEnrollment[]
+  courseName?: CourseName
+  building?: string
+  floor?: string
+  roomNumber?: string
+  scheduleDays?: WeekdayName[]
+  startTime?: string
+  endTime?: string
+  startDate?: string
+  endDate?: string
+  maxStudents?: number
+  registrationToken?: string
+  teacherName?: string
+  studentCount?: number
+}
+
+export interface ManagedClassDraft {
+  name: string
+  course: CourseName
+  building: string
+  floor: string
+  roomNumber?: string
+  scheduleDays: WeekdayName[]
+  startTime: string
+  endTime: string
+  startDate: string
+  endDate: string
+  maxStudents?: number
+  teacherId?: string
+}
+
+export interface AttendanceSession {
+  id: string
+  classId: string
+  className?: string
+  token: string
+  startedAt: string
+  expiresAt: string
+  durationSeconds: number
+  status: 'active' | 'ended'
+}
+
+export interface AttendanceParticipant {
+  studentId: string
+  name: string
+  email: string
+  status: AttendanceStatus
+  checkedInAt: string | null
+  attendanceId?: string
+}
+
+export interface AttendanceReportRow {
+  studentId: string
+  name: string
+  email: string
+  status: AttendanceStatus
+  checkedInAt: string | null
+}
+
+export interface AttendanceReport {
+  classId: string
+  className: string
+  date: string
+  rows: AttendanceReportRow[]
+  counts: Record<'present' | 'late' | 'absent', number>
+}
+
+export interface AttendanceCheckInResult {
+  status: AttendanceStatus
+  classId?: string
+  className?: string
+  checkedInAt?: string
+  message?: string
 }
 
 export interface ClassEnrollment {

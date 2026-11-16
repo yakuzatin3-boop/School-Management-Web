@@ -49,6 +49,48 @@ const router = createRouter({
           meta: { title: 'Attendance' },
         },
         {
+          path: 'teacher/classes',
+          name: 'teacher-classes',
+          component: () => import('@/views/TeacherClassesView.vue'),
+          meta: { title: 'My classes', roles: ['teacher'] satisfies RoleKey[] },
+        },
+        {
+          path: 'teacher/classes/create',
+          name: 'teacher-class-create',
+          component: () => import('@/views/ClassCreateView.vue'),
+          meta: { title: 'Create class', roles: ['teacher'] satisfies RoleKey[] },
+        },
+        {
+          path: 'teacher/classes/:id',
+          name: 'teacher-class-detail',
+          component: () => import('@/views/ClassDetailView.vue'),
+          meta: { title: 'Class details', roles: ['teacher'] satisfies RoleKey[] },
+        },
+        {
+          path: 'teacher/classes/:id/attendance',
+          name: 'teacher-class-attendance',
+          component: () => import('@/views/ClassAttendanceView.vue'),
+          meta: { title: 'Live attendance', roles: ['teacher'] satisfies RoleKey[] },
+        },
+        {
+          path: 'teacher/classes/:id/report',
+          name: 'teacher-class-report',
+          component: () => import('@/views/ClassReportView.vue'),
+          meta: { title: 'Attendance report', roles: ['teacher'] satisfies RoleKey[] },
+        },
+        {
+          path: 'student/scan',
+          name: 'student-scan',
+          component: () => import('@/views/StudentScanView.vue'),
+          meta: { title: 'Scan to check in', roles: ['student'] satisfies RoleKey[] },
+        },
+        {
+          path: 'student/classes',
+          name: 'student-classes',
+          component: () => import('@/views/StudentClassesView.vue'),
+          meta: { title: 'My classes', roles: ['student'] satisfies RoleKey[] },
+        },
+        {
           path: 'grades',
           name: 'grades',
           component: () => import('@/views/GradesView.vue'),
@@ -85,6 +127,16 @@ const router = createRouter({
           meta: { title: 'Settings' },
         },
       ],
+    },
+    {
+      path: '/join/:classId',
+      name: 'join-class',
+      component: () => import('@/views/JoinClassView.vue'),
+      meta: {
+        title: 'Join class',
+        requiresAuth: true,
+        roles: ['student'] satisfies RoleKey[],
+      },
     },
     {
       path: '/:pathMatch(.*)*',
